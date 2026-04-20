@@ -1,40 +1,32 @@
 # analyzer_engine.py
 
-class OrbisArchitectPro:
+class GearArchitect:
     def __init__(self):
-        # Rangos oficiales extraídos de OnStove (Nivel 85)
-        self.ROLL_DATA = {
-            'EPIC': {'min': 4, 'max': 8, 'spd_max': 5, 'cr_max': 5, 'cd_max': 7},
-            'HEROIC': {'min': 3, 'max': 7, 'spd_max': 4, 'cr_max': 4, 'cd_max': 6}
+        # Pesos oficiales de puntuación (Score)
+        self.WEIGHTS = {
+            'atk_p': 1, 'hp_p': 1, 'def_p': 1, 'eff': 1, 'res': 1,
+            'cr': 1.6, 'cd': 1.1, 'spd': 2.0, 'atk_f': 0.1, 'hp_f': 0.02, 'def_f': 0.15
         }
         
-        # Pesos de Gear Score (GS) y WSS
-        self.WEIGHTS = {
-            'atk': 1, 'hp': 1, 'def': 1, 'eff': 1, 'res': 1,
-            'cr': 1.6, 'cd': 1.14, 'spd': 2.0
+        # Incrementos fijos de Reforge (Nivel 85 -> 90)
+        # Basado en la lógica de Meowyih: los stats suben según cuántas veces 'prolearon'
+        self.REFORGE_MAP = {
+            'atk_p': [1, 3, 4, 5, 7, 8], # 0 procs a 5 procs
+            'spd': [0, 2, 3, 4, 4, 5],
+            'cr': [1, 2, 3, 3, 4, 5],
+            'cd': [1, 2, 3, 4, 5, 7],
+            # ... resto de stats
         }
 
-    def calculate_efficiency(self, stats, grade, enhancement):
-        """
-        Calcula la eficiencia basada en el grado y nivel de mejora.
-        Lógica: (Suma de rolls actuales / Suma de rolls máximos teóricos)
-        """
-        max_possible = (4 if grade == 'EPIC' else 3) + (enhancement // 3)
-        # Aproximación de eficiencia de rolls individuales
-        total_efficiency = sum([stats[s] / self.ROLL_DATA[grade].get(f"{s}_max", 8) for s in stats if stats[s] > 0])
-        return (total_efficiency / max_possible) * 100
+    def calculate_score(self, stats):
+        return sum(v * self.WEIGHTS.get(k, 0) for k, v in stats.items())
 
-    def get_gear_score(self, stats):
-        return sum(stats[s] * self.WEIGHTS.get(s, 0) for s in stats)
-
-    def get_reforge_potential(self, stats, gear_type):
-        """Predice el GS final en Nivel 90"""
-        # La velocidad sube +2 a +4, los stats % suben de 7% a 9% usualmente
-        bonus = 0
-        for s, v in stats.items():
-            if v > 0:
-                if s == 'spd': bonus += 4
-                elif s in ['atk', 'hp', 'def', 'eff', 'res']: bonus += 7
-                elif s == 'cr': bonus += 4
-                elif s == 'cd': bonus += 5
-        return self.get_gear_score(stats) + bonus
+    def estimate_reforge(self, stats, procs):
+        """Simula el score final en Nivel 90 basándose en el historial de mejora"""
+        reforged_stats = {}
+        for s, val in stats.items():
+            if val > 0:
+                p = procs.get(s, 0)
+                bonus = self.REFORGE_MAP.get(s, [1, 2, 3, 4, 5, 7])[p]
+                reforged_stats[s] = val + bonus
+        return self.calculate_score(reforged_stats)
