@@ -1,63 +1,76 @@
-# app.py
 import streamlit as st
-from analyzer_engine import GearArchitect
+from engine import OrbisArchitectEngine
 
-ga = GearArchitect()
+# Configuración inicial
+st.set_page_config(page_title="Orbis Architect Elite", layout="wide")
+engine = OrbisArchitectEngine()
 
-st.set_page_config(page_title="E7 Elite Analyzer", layout="centered")
+# Diseño visual oscuro y limpio
+st.markdown("""
+    <style>
+    .stApp { background-color: #0e1117; color: white; }
+    div[data-testid="stMetricValue"] { font-size: 2rem; color: #00ffa2 !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("🛡️ Orbis Elite Analyzer")
+st.title("🛡️ Orbis Architect Elite V1")
+st.caption("Integración: Meowyih + Needlebot + RTAStats + Epic7x")
 
-# --- BLOQUE 1: METADATOS ---
+# --- SECCIÓN 1: METADATOS ---
 with st.container():
-    col_a, col_b = st.columns(2)
-    with col_a:
-        gear_type = st.selectbox("Tipo", ["Arma", "Casco", "Pecho", "Collar", "Anillo", "Botas"])
-        grade = st.radio("Grado", ["Épico", "Heroico"], horizontal=True)
-    with col_b:
-        set_name = st.selectbox("Set", ["Speed", "Counter", "Pen", "Destruction", "Lifesteal", "HP"])
-        level = st.selectbox("Nivel", [85, 90, 88, 75])
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        grade = st.selectbox("Grado de la Pieza", ["Épico", "Heroico"])
+        set_name = st.selectbox("Set de Equipo", ["Speed", "Counter", "Destruction", "Lifesteal", "HP", "Torrent"])
+    with c2:
+        level = st.selectbox("Nivel Base", [85, 90, 88, 75])
+        enh = st.select_slider("Mejora actual", options=[0, 3, 6, 9, 12, 15], value=15)
+    with c3:
+        st.info("💡 Consejo: Las piezas Heroicas deben tener GS > 35 en +9 para continuar.")
 
-# --- BLOQUE 2: INPUT DE STATS (Estilo Meowyih) ---
-st.subheader("🧪 Substats & Procs")
-stats = {}
-procs = {}
+st.divider()
 
-cols = st.columns(2)
-substats_list = [
-    ('spd', 'Velocidad'), ('atk_p', 'Atk %'), ('cr', 'Crit Rate %'), 
-    ('cd', 'Crit Dmg %'), ('hp_p', 'HP %'), ('def_p', 'Def %'),
-    ('eff', 'Eficacia %'), ('res', 'Resistencia %')
-]
+# --- SECCIÓN 2: INPUT DE STATS ---
+st.subheader("🧪 Atributos (+15 o actuales)")
+col_s1, col_s2, col_s3, col_s4 = st.columns(4)
 
-for i, (key, label) in enumerate(substats_list):
-    with cols[i % 2]:
-        c1, c2 = st.columns([2, 1])
-        stats[key] = c1.number_input(label, 0, 350, 0, key=f"val_{key}")
-        if level == 85: # Solo pedir procs si es para predecir reforge
-            procs[key] = c2.number_input("Rolls", 0, 5, 0, key=f"proc_{key}")
+with col_s1:
+    spd = st.number_input("Velocidad", 0, 30, 0)
+    atk_p = st.number_input("Ataque %", 0, 60, 0)
+with col_s2:
+    hp_p = st.number_input("Vida %", 0, 60, 0)
+    def_p = st.number_input("Defensa %", 0, 60, 0)
+with col_s3:
+    cr = st.number_input("Crit Rate %", 0, 100, 0)
+    cd = st.number_input("Crit Dmg %", 0, 350, 0)
+with col_s4:
+    eff = st.number_input("Eficacia %", 0, 100, 0)
+    res = st.number_input("Resistencia %", 0, 100, 0)
 
-# --- BLOQUE 3: RESULTADOS ---
-if st.button("🚀 CALCULAR ANÁLISIS PROFUNDO", use_container_width=True):
-    current_score = ga.calculate_score(stats)
+# Diccionario de entrada
+current_stats = {'spd': spd, 'atk_p': atk_p, 'hp_p': hp_p, 'def_p': def_p, 'cr': cr, 'cd': cd, 'eff': eff, 'res': res}
+
+# --- SECCIÓN 3: RESULTADOS Y ANÁLISIS ---
+if st.button("🚀 EJECUTAR ANÁLISIS TÉCNICO", use_container_width=True):
+    gs = engine.calculate_gs(current_stats)
+    efficiency = engine.calculate_efficiency(current_stats, grade, enh)
+    meta_info = engine.get_rta_meta_advice(set_name)
     
     st.divider()
     
-    # Métricas principales
-    m1, m2 = st.columns(2)
-    m1.metric("Score Actual", f"{current_score:.1f}")
+    # Dashboard de métricas
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Gear Score", f"{gs:.1f}")
+    m2.metric("Eficiencia", f"{efficiency:.1f}%")
+    m3.metric("Potencial", "God Tier" if gs > 65 else "Competitivo" if gs > 50 else "Filler")
+
+    # Veredicto dinámico
+    st.subheader("📋 Veredicto del Analista")
+    st.write(meta_info)
     
-    if level == 85:
-        reforge_score = ga.estimate_reforge(stats, procs)
-        m2.metric("Potencial Reforge (90)", f"{reforge_score:.1f}")
-    
-    # Veredicto Estratégico (Lógica Zorathx + Meta 2026)
-    st.subheader("💡 Veredicto del Analista")
-    if current_score < 45:
-        st.error("⚠️ Calidad Baja: No desperdiciar oro. Esta pieza no alcanzará el meta de RTA.")
-    elif current_score >= 60:
-        st.success(f"🔥 God Roll: Esta pieza es excepcional para un build de {set_name}.")
-    
-    # Análisis de sinergia
-    if stats['spd'] >= 12:
-        st.info("🏃 Perfil: Iniciador/Opener. Ideal para unidades que buscan el primer turno.")
+    if enh < 15 and efficiency < 60:
+        st.error("⚠️ Según Epic7x: La eficiencia es muy baja. Considera dejar de mejorar para ahorrar recursos.")
+    elif gs >= 60:
+        st.success("💎 Pieza de nivel Emperador/Leyenda. Prioridad de Reforge nivel 90.")
+    else:
+        st.warning("📦 Pieza útil para progresión general o unidades de PvE.")
