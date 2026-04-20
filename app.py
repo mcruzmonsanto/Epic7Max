@@ -1,57 +1,77 @@
 # app.py
 import streamlit as st
-from analyzer_engine import OrbisArchitectEngine
+from analyzer_engine import OrbisArchitectPro
 
-# Inicializar el motor
-engine = OrbisArchitectEngine()
+engine = OrbisArchitectPro()
 
-st.set_page_config(page_title="Orbis Architect Pro", layout="wide")
+st.set_page_config(page_title="E7 Gear Architect Pro", layout="wide")
 
-# Estilo para móviles (Android)
+# --- CSS PERSONALIZADO PARA MÓVILES ---
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    div[data-testid="stMetricValue"] { font-size: 1.8rem; color: #00ffcc; }
+    .stSelectbox, .stNumberInput { margin-bottom: -10px; }
+    .reportview-container .main .block-container { padding-top: 1rem; }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-st.title("🛡️ Orbis Architect Pro")
-st.caption("Análisis de Equipamiento basado en Meta 2026")
+st.title("🛡️ E7 Gear Architect Pro")
 
-# Sección de Entrada de Datos
-with st.container():
-    st.subheader("📥 Atributos de la Pieza (+15)")
-    col1, col2, col3 = st.columns(3)
+# --- SECCIÓN 1: METADATOS DEL EQUIPO ---
+with st.expander("📦 Identificación de la Pieza", expanded=True):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        gear_type = st.selectbox("Tipo de Pieza", ["Arma", "Casco", "Armadura", "Collar", "Anillo", "Botas"])
+        set_type = st.selectbox("Set", ["Speed", "Counter", "Destruction", "Lifesteal", "HP", "Immunity", "Penetration", "Torrent"])
+    with c2:
+        grade = st.selectbox("Grado", ["EPIC", "HEROIC"])
+        level = st.selectbox("Nivel Base", [85, 88, 90, 75])
+    with c3:
+        enhancement = st.slider("Mejora (+)", 0, 15, 15, step=3)
+        main_stat = st.selectbox("Stat Principal", ["Atk %", "HP %", "Def %", "Speed", "Crit Rate", "Crit Dmg", "Eff", "Res"])
+
+# --- SECCIÓN 2: SUB-STATS (INPUT TIPO NEEDLEBOT) ---
+st.subheader("🧪 Sub-Atributos")
+col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+
+with col_s1:
+    spd = st.number_input("Velocidad", 0, 30, 0)
+    atk = st.number_input("Atk %", 0, 60, 0)
+with col_s2:
+    cr = st.number_input("Crit Rate %", 0, 100, 0)
+    cd = st.number_input("Crit Dmg %", 0, 350, 0)
+with col_s3:
+    hp = st.number_input("HP %", 0, 60, 0)
+    df = st.number_input("Def %", 0, 60, 0)
+with col_s4:
+    eff = st.number_input("Eff %", 0, 100, 0)
+    res = st.number_input("Res %", 0, 100, 0)
+
+stats = {'spd': spd, 'atk': atk, 'cr': cr, 'cd': cd, 'hp': hp, 'def': df, 'eff': eff, 'res': res}
+
+# --- SECCIÓN 3: ANÁLISIS PROFUNDO ---
+if st.button("🚀 EJECUTAR ANÁLISIS TÉCNICO", use_container_width=True):
+    gs = engine.get_gear_score(stats)
+    eff_roll = engine.calculate_efficiency(stats, grade, enhancement)
+    reforge_gs = engine.get_reforge_potential(stats, gear_type) if level == 85 else gs
     
-    with col1:
-        spd = st.number_input("Velocidad", 0, 30, 4, step=1)
-        atk = st.number_input("Ataque %", 0, 60, 0)
-    with col2:
-        hp = st.number_input("Vida %", 0, 60, 0)
-        def_pct = st.number_input("Defensa %", 0, 60, 0)
-    with col3:
-        cr = st.number_input("Prob. Crítica %", 0, 100, 0)
-        cd = st.number_input("Daño Crítico %", 0, 350, 0)
-
-# Diccionario de stats para el motor
-input_stats = {'spd': spd, 'atk': atk, 'hp': hp, 'def': def_pct, 'crit_rate': cr, 'crit_dmg': cd}
-
-# Ejecutar Análisis al presionar botón
-if st.button("🔍 ANALIZAR PIEZA", use_container_width=True):
-    gs = engine.get_gear_score(input_stats)
-    eff = engine.get_efficiency(input_stats)
-    verdict = engine.analyze_meta_fit(input_stats)
-    
-    # Dashboard de Resultados Estilo App Moderna
     st.divider()
-    m1, m2 = st.columns(2)
-    m1.metric("Gear Score (GS)", f"{gs:.1f}")
-    m2.metric("Roll Efficiency", f"{eff:.1f}%")
     
-    st.info(f"**Veredicto de Meta:** {verdict}")
+    # Dashboard de Métricas
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Gear Score Actual", f"{gs:.1f}")
+    m2.metric("Eficiencia de Rolls", f"{eff_roll:.1f}%")
+    m3.metric("Potencial Nivel 90", f"{reforge_gs:.1f} GS")
+
+    # Lógica de Veredicto Zorathx
+    st.subheader("💡 Análisis de Rol y Meta")
     
-    # Recomendación basada en lógica Zorathx
-    if gs < 50:
-        st.warning("⚠️ Recomendación: Esta pieza no cumple los estándares para PvP. Considerar como 'Placeholder' en PvE.")
-    else:
-        st.success("✨ Recomendación: Pieza de alto potencial. Priorizar para Reforge de Nivel 90.")
+    if grade == "HEROIC" and gs < 40 and enhancement < 9:
+        st.error("⚠️ ALERTA: Rolls bajos para pieza Heroica. No gastar más recursos.")
+    elif gs >= 65:
+        st.success(f"🔥 PIEZA TOP-TIER: Excelente para set de {set_type}. Prioridad máxima de reforge.")
+    
+    # Sugerencia de Héroe (Basado en Set + Stats)
+    if set_type == "Speed" and spd > 12:
+        st.info("🎯 Destinatario sugerido: Openers (Lídica, Peira) o Fast DPS (Celine).")
+    elif set_type == "Counter" and hp > 15:
+        st.info("🎯 Destinatario sugerido: Bruisers de contraataque (Mort, Abigail).")
